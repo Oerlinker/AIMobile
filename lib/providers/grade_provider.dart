@@ -9,6 +9,7 @@ class GradeProvider with ChangeNotifier {
 
   List<Period> _periods = [];
   List<Grade> _grades = [];
+  Map<String, dynamic> _courseStudentGrades = {};
   bool _loading = false;
   String? _error;
 
@@ -18,6 +19,7 @@ class GradeProvider with ChangeNotifier {
   // Getters para acceder al estado
   List<Period> get periods => _periods;
   List<Grade> get grades => _grades;
+  Map<String, dynamic> get courseStudentGrades => _courseStudentGrades;
   bool get isLoading => _loading;
   String? get error => _error;
 
@@ -99,19 +101,24 @@ class GradeProvider with ChangeNotifier {
         return true;
       }
       _error = 'No se pudo crear la calificación';
-      _loading = false;
-      notifyListeners();
       return false;
     } catch (e) {
       _error = 'Error al crear calificación: $e';
+      return false;
+    } finally {
       _loading = false;
       notifyListeners();
-      return false;
     }
   }
 
   /// Actualiza una calificación existente (para profesores)
   Future<bool> updateGrade(Grade grade) async {
+    if (grade.id == null) {
+      _error = 'No se puede actualizar una calificación sin ID';
+      notifyListeners();
+      return false;
+    }
+
     _loading = true;
     _error = null;
     notifyListeners();
@@ -121,22 +128,19 @@ class GradeProvider with ChangeNotifier {
       if (updatedGrade != null) {
         // Actualizar la calificación en la lista
         final index = _grades.indexWhere((g) => g.id == grade.id);
-        if (index >= 0) {
+        if (index != -1) {
           _grades[index] = updatedGrade;
         }
-        _loading = false;
-        notifyListeners();
         return true;
       }
       _error = 'No se pudo actualizar la calificación';
-      _loading = false;
-      notifyListeners();
       return false;
     } catch (e) {
       _error = 'Error al actualizar calificación: $e';
+      return false;
+    } finally {
       _loading = false;
       notifyListeners();
-      return false;
     }
   }
 
@@ -150,20 +154,17 @@ class GradeProvider with ChangeNotifier {
       final success = await _gradeService.deleteGrade(gradeId);
       if (success) {
         // Eliminar la calificación de la lista
-        _grades.removeWhere((grade) => grade.id == gradeId);
-        _loading = false;
-        notifyListeners();
+        _grades.removeWhere((g) => g.id == gradeId);
         return true;
       }
       _error = 'No se pudo eliminar la calificación';
-      _loading = false;
-      notifyListeners();
       return false;
     } catch (e) {
       _error = 'Error al eliminar calificación: $e';
+      return false;
+    } finally {
       _loading = false;
       notifyListeners();
-      return false;
     }
   }
 
@@ -274,6 +275,128 @@ class GradeProvider with ChangeNotifier {
       _loading = false;
       notifyListeners();
       return null;
+    }
+  }
+
+  /// Carga las notas de los estudiantes de un curso específico para una materia y período
+  /// Método específico para profesores
+  Future<void> loadStudentGradesByCourse(int courseId, int subjectId, int periodId) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final result = await _gradeService.getStudentGradesByCourse(
+        courseId,
+        subjectId,
+        periodId
+      );
+
+      _courseStudentGrades = result;
+    } catch (e) {
+      _error = 'Error al cargar notas de estudiantes: $e';
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Crea una nueva nota para un estudiante específico
+  /// Método específico para profesores
+  Future<bool> createStudentGrade({
+    required int courseId,
+    required int studentId,
+    required int subjectId,
+    required int periodId,
+    required double serPuntaje,
+    required double saberPuntaje,
+    required double hacerPuntaje,
+    required double decidirPuntaje,
+    double? autoevaluacionSer,
+    double? autoevaluacionDecidir,
+    String? comentario,
+  }) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final result = await _gradeService.createStudentGrade(
+        courseId: courseId,
+        studentId: studentId,
+        subjectId: subjectId,
+        periodId: periodId,
+        serPuntaje: serPuntaje,
+        saberPuntaje: saberPuntaje,
+        hacerPuntaje: hacerPuntaje,
+        decidirPuntaje: decidirPuntaje,
+        autoevaluacionSer: autoevaluacionSer,
+        autoevaluacionDecidir: autoevaluacionDecidir,
+        comentario: comentario,
+      );
+
+      return result != null;
+    } catch (e) {
+      _error = 'Error al crear nota para estudiante: $e';
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Actualiza una nota existente
+  /// Método específico para profesores
+  Future<bool> updateStudentGrade({
+    required int courseId,
+    required int notaId,
+    double? serPuntaje,
+    double? saberPuntaje,
+    double? hacerPuntaje,
+    double? decidirPuntaje,
+    String? comentario,
+  }) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final result = await _gradeService.updateStudentGrade(
+        courseId: courseId,
+        notaId: notaId,
+        serPuntaje: serPuntaje,
+        saberPuntaje: saberPuntaje,
+        hacerPuntaje: hacerPuntaje,
+        decidirPuntaje: decidirPuntaje,
+        comentario: comentario,
+      );
+
+      return result != null;
+    } catch (e) {
+      _error = 'Error al actualizar nota de estudiante: $e';
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Elimina una nota existente
+  /// Método específico para profesores
+  Future<bool> deleteStudentGrade(int courseId, int notaId) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final success = await _gradeService.deleteStudentGrade(courseId, notaId);
+      return success;
+    } catch (e) {
+      _error = 'Error al eliminar nota de estudiante: $e';
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
     }
   }
 }

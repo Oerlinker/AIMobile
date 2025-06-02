@@ -14,6 +14,7 @@ class ParticipationProvider extends ChangeNotifier {
   List<Participation> get participations => _participations;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  ParticipationService get participationService => _participationService;
 
   Future<void> loadParticipations({
     int? estudianteId,

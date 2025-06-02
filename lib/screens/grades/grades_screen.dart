@@ -17,6 +17,8 @@ class GradesScreen extends StatefulWidget {
 
 class _GradesScreenState extends State<GradesScreen> {
   Period? _selectedPeriod;
+  int? _selectedCourseId;
+  List<Map<String, dynamic>> _availableCourses = [];
   bool _isLoadingData = false;
 
   @override
@@ -34,6 +36,14 @@ class _GradesScreenState extends State<GradesScreen> {
     final gradeProvider = Provider.of<GradeProvider>(context, listen: false);
     await gradeProvider.loadPeriods();
 
+    // Cargar los cursos disponibles si el usuario es profesor
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final User? currentUser = authProvider.currentUser;
+
+    if (currentUser != null && currentUser.isTeacher) {
+      await _loadAvailableCourses();
+    }
+
     // Si hay periodos disponibles, seleccionar el primero
     if (gradeProvider.periods.isNotEmpty) {
       setState(() {
@@ -47,6 +57,33 @@ class _GradesScreenState extends State<GradesScreen> {
     setState(() {
       _isLoadingData = false;
     });
+  }
+
+  // Método para cargar los cursos disponibles para el profesor
+  Future<void> _loadAvailableCourses() async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final User? currentUser = authProvider.currentUser;
+
+      if (currentUser != null && currentUser.isTeacher) {
+        // TODO: Implementar el servicio para obtener los cursos
+        // Por ahora, simulamos algunos cursos disponibles
+        setState(() {
+          _availableCourses = [
+            {'id': 1, 'name': 'Curso 1-A'},
+            {'id': 2, 'name': 'Curso 2-B'},
+            {'id': 3, 'name': 'Curso 3-C'},
+          ];
+
+          // Seleccionar el primer curso por defecto si hay disponibles
+          if (_availableCourses.isNotEmpty) {
+            _selectedCourseId = _availableCourses.first['id'] as int;
+          }
+        });
+      }
+    } catch (e) {
+      print('Error al cargar cursos disponibles: $e');
+    }
   }
 
   Future<void> _loadGrades() async {
@@ -65,9 +102,10 @@ class _GradesScreenState extends State<GradesScreen> {
           periodId: _selectedPeriod!.id,
         );
       } else if (currentUser.isTeacher) {
-        // Profesor ve las calificaciones de sus materias
+        // Profesor ve las calificaciones de sus materias, filtradas por curso si hay uno seleccionado
         await gradeProvider.loadGrades(
           periodId: _selectedPeriod!.id,
+          courseId: _selectedCourseId, // Usar el curso seleccionado para filtrar
         );
       } else if (currentUser.isAdmin) {
         // Administrativo ve todas las calificaciones
@@ -140,6 +178,40 @@ class _GradesScreenState extends State<GradesScreen> {
                       }
                     },
                   ),
+
+                  // Selector de curso (solo para profesores)
+                  if (currentUser.isTeacher && _availableCourses.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Filtrar por Curso',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      value: _selectedCourseId,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
+                      items: _availableCourses.map((course) {
+                        return DropdownMenuItem<int>(
+                          value: course['id'] as int,
+                          child: Text(course['name'] as String),
+                        );
+                      }).toList(),
+                      onChanged: (int? value) {
+                        if (value != null && value != _selectedCourseId) {
+                          setState(() {
+                            _selectedCourseId = value;
+                          });
+                          _loadGrades();
+                        }
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),

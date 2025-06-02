@@ -6,6 +6,9 @@ class ParticipationService {
 
   ParticipationService(this._apiClient);
 
+  // Agregamos un getter público para acceder al ApiClient
+  ApiClient get apiClient => _apiClient;
+
   Future<List<Participation>> getParticipations({
     int? estudianteId,
     int? materiaId,

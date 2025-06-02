@@ -1,9 +1,17 @@
+// filepath: c:\Users\Andres\AndroidStudioProjects\Aula_Inteligente\lib\screens\home\home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
-import '../grades/grades_screen.dart';
+import '../participation/teacher_participation_screen.dart';
+import '../attendance/teacher_attendance_screen.dart';
+import '../attendance/attendance_screen.dart';
+import '../predictions/predictions_screen.dart';
+import '../dashboard/general_dashboard_screen.dart';
+import '../dashboard/student_dashboard_screen.dart';
+import '../dashboard/comparison_dashboard_screen.dart';
+import '../grades/teacher_grades_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,13 +22,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-
-  final List<Widget> _pages = [
-    const _DashboardPage(),
-    const GradesScreen(),
-    const _PredictionsPage(),
-    const _ProfilePage(),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +35,25 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+
+    // Determinar qué opciones están disponibles según el rol del usuario
+    final bool isStudent = currentUser.role == 'ESTUDIANTE';
+    final bool isTeacher = currentUser.role == 'PROFESOR';
+    final bool isAdmin = currentUser.role == 'ADMINISTRATIVO';
+
+    // Construir la lista de páginas basada en el rol del usuario
+    final List<Widget> pages = [
+      // Dashboard - El primero depende del rol
+      currentUser.role == 'ESTUDIANTE'
+          ? const StudentDashboardScreen()
+          : currentUser.role == 'PROFESOR'
+              ? const ComparisonDashboardScreen()
+              : const GeneralDashboardScreen(),
+      // Si es estudiante, solo mostrar las páginas relevantes
+      if (!isStudent && !isTeacher) const AttendanceScreen(),
+      if (!isStudent) const PredictionsScreen(),
+      const _ProfilePage(),
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -97,37 +117,82 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pop(context);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.grade),
-              title: const Text('Calificaciones'),
-              onTap: () {
-                setState(() {
-                  _selectedIndex = 1;
-                });
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.psychology),
-              title: const Text('Predicciones'),
-              onTap: () {
-                setState(() {
-                  _selectedIndex = 2;
-                });
-                Navigator.pop(context);
-              },
-            ),
+            if (!isStudent) ...[
+              // Opciones específicas para profesores
+              if (isTeacher) ...[
+                ListTile(
+                  leading: const Icon(Icons.assignment),
+                  title: const Text('Mis Notas'),
+                  onTap: () {
+                    // Navegar a la pantalla de gestión de notas para profesores
+                    Navigator.pop(context); // Cerrar el drawer primero
+                    Navigator.pushNamed(context, TeacherGradesScreen.routeName);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.question_answer),
+                  title: const Text('Mis Participaciones'),
+                  onTap: () {
+                    // Navegar a la pantalla de participaciones para profesores
+                    Navigator.pop(context); // Cerrar el drawer primero
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TeacherParticipationScreen(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.calendar_today),
+                  title: const Text('Mis Asistencias'),
+                  onTap: () {
+                    // Navegar a la pantalla de asistencias para profesores
+                    Navigator.pop(context); // Cerrar el drawer primero
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TeacherAttendanceScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+              // Opciones para administradores
+              if (!isTeacher) ...[
+                ListTile(
+                  leading: const Icon(Icons.calendar_today),
+                  title: const Text('Asistencias'),
+                  onTap: () {
+                    setState(() {
+                      _selectedIndex = 1; // Ajustar índice
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+              ListTile(
+                leading: const Icon(Icons.psychology),
+                title: const Text('Predicciones'),
+                onTap: () {
+                  setState(() {
+                    _selectedIndex = isTeacher ? 1 : 2; // Ajustar índice
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.person),
               title: const Text('Perfil'),
               onTap: () {
                 setState(() {
-                  _selectedIndex = 3;
+                  _selectedIndex = isStudent ? 1 : (isTeacher ? 2 : 3); // Ajustar índice
                 });
                 Navigator.pop(context);
               },
             ),
-            const Divider(),
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Cerrar Sesión'),
@@ -139,158 +204,43 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      body: _pages[_selectedIndex],
+      body: pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: (index) {
           setState(() {
-            _selectedIndex = index;
+            // Para estudiantes, mapear los índices 0 y 1 a dashboard y perfil
+            if (isStudent) {
+              _selectedIndex = index == 0 ? 0 : 1;
+            } else if (isTeacher) {
+              // Para profesores, solo dashboard, predicciones y perfil
+              _selectedIndex = index;
+            } else {
+              _selectedIndex = index;
+            }
           });
         },
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.grade),
-            label: 'Notas',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.psychology),
-            label: 'Predicciones',
-          ),
-          BottomNavigationBarItem(
+          if (!isStudent && !isTeacher)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_today),
+              label: 'Asistencia',
+            ),
+          if (!isStudent)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.psychology),
+              label: 'Predicciones',
+            ),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Perfil',
           ),
         ],
-      ),
-    );
-  }
-}
-
-// Páginas temporales para cada sección
-// Estas serán reemplazadas por pantallas completas en el futuro
-
-class _DashboardPage extends StatelessWidget {
-  const _DashboardPage();
-
-  @override
-  Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.currentUser;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.dashboard,
-              size: 80,
-              color: Colors.blue,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Bienvenido/a, ${user?.firstName}',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Panel de Control',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 30),
-            const Text(
-              'Aquí se mostrará el dashboard con estadísticas y datos relevantes según tu rol en el sistema.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NotesPage extends StatelessWidget {
-  const _NotesPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.grade,
-              size: 80,
-              color: Colors.amber,
-            ),
-            SizedBox(height: 20),
-            Text(
-              'Calificaciones',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 30),
-            Text(
-              'Aquí se mostrarán las calificaciones y evaluaciones.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PredictionsPage extends StatelessWidget {
-  const _PredictionsPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.psychology,
-              size: 80,
-              color: Colors.deepPurple,
-            ),
-            SizedBox(height: 20),
-            Text(
-              'Predicciones',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 30),
-            Text(
-              'Aquí se mostrarán las predicciones de rendimiento académico basadas en machine learning.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -357,7 +307,7 @@ class _ProfilePage extends StatelessWidget {
             const SizedBox(height: 30),
             ElevatedButton(
               onPressed: () {
-                // Aquí iría la lógica para editar el perfil (a implementar)
+                // Aquí iría la lógica para editar el perfil
               },
               child: const Text('Editar Perfil'),
             ),
